@@ -20,38 +20,25 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
       trim: true,
-      default:
-        "https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3467.jpg",
+      default: "https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3467.jpg",
     },
     isVerified: { type: Boolean, default: false },
     emailVerificationToken: { type: String },
     emailVerificationExpires: { type: Date },
-    resetPasswordToken: { type: String },
-    resetPasswordExpires: { type: Date },
-    forgetPasswordToken: { type: String },
-    forgetPasswordExpires: { type: Date },
-    googleId: { type: String },
     role: {
       type: String,
       enum: ["user", "admin", "superAdmin"],
       default: "user",
     },
-    isActive: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-
 userSchema.methods.emailVerification = function () {
   this.emailVerificationToken = uuidv4();
-  this.emailVerificationExpires = Date.now() + 3600000; 
+  this.emailVerificationExpires = Date.now() + 3600000;
 };
-
-
-// userSchema.methods.emailVerification = function () {
-//   this.emailVerificationToken = crypto.randomBytes(20).toString("hex");
-//   this.emailVerificationExpires = Date.now() + 3600000;
-// };
 
 userSchema.pre("save", async function (next) {
   const user = this;

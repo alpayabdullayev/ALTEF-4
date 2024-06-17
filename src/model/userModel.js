@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
       trim: true,
-      default: "https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3467.jpg",
+      default:
+        "https://img.freepik.com/premium-vector/default-avatar-profile-icon-social-media-user-image-gray-avatar-icon-blank-profile-silhouette-vector-illustration_561158-3467.jpg",
     },
     isVerified: { type: Boolean, default: false },
     emailVerificationToken: { type: String },
@@ -30,6 +31,26 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin", "superAdmin"],
       default: "user",
     },
+    blogs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ALTEF4BLOG",
+      },
+    ],
+    likes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ALTEF4BLOG",
+      },
+    ],
+    saves: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ALTEF4BLOG",
+      },
+    ],
+    following: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
+    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

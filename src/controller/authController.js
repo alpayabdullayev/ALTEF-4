@@ -1,8 +1,12 @@
 const sendMail = require("../utils/sendMail");
-const { generateAccessToken, generateRefreshToken } = require("../utils/generate-token");
+const {
+  generateAccessToken,
+  generateRefreshToken,
+} = require("../utils/generate-token");
 const userModel = require("../model/userModel");
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const { cookieOptions } = require("../utils/cookieOptions");
 
 const register = async (req, res) => {
   try {
@@ -25,7 +29,9 @@ const register = async (req, res) => {
       ${process.env.CLIENT_URL}/verify-email?token=${newUser.emailVerificationToken}`;
     await sendMail(newUser.email, "Please verify your email", emailText);
 
-    res.status(201).json({ message: "User created successfully", user: newUser });
+    res
+      .status(201)
+      .json({ message: "User created successfully", user: newUser });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -81,7 +87,10 @@ const login = async (req, res) => {
     }
 
     if (!user.isVerified) {
-      return res.status(403).json({ error: "Account is not verified. Please verify your account before logging in." });
+      return res.status(403).json({
+        error:
+          "Account is not verified. Please verify your account before logging in.",
+      });
     }
 
     const accessToken = generateAccessToken(user);
@@ -100,10 +109,10 @@ const login = async (req, res) => {
     const { password: _, ...otherDetails } = user._doc;
 
     res.status(200).json({
-      message: 'Login successfully',
+      message: "Login successfully",
       user: { ...otherDetails },
       accessToken,
-      refreshToken
+      refreshToken,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -119,7 +128,11 @@ const forgotPassword = async (req, res) => {
       return res.status(404).json({ message: "User not found" });
     }
 
-    const resetToken = jwt.sign({ userId: user._id }, process.env.RESET_PASSWORD_SECRET, { expiresIn: '1h' });
+    const resetToken = jwt.sign(
+      { userId: user._id },
+      process.env.RESET_PASSWORD_SECRET,
+      { expiresIn: "1h" }
+    );
 
     const resetUrl = `${process.env.CLIENT_URL}/reset-password?token=${resetToken}`;
     const emailText = `Please click the following link to reset your password: \n\n ${resetUrl}`;
@@ -161,22 +174,54 @@ const resetPassword = async (req, res) => {
 
 const logout = async (req, res) => {
   try {
-    res.clearCookie('accessToken', {
+    res.clearCookie("accessToken", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
-    res.clearCookie('refreshToken', {
+    res.clearCookie("refreshToken", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
     });
 
-    res.status(200).json({ message: 'Logout successful' });
+    res.status(200).json({ message: "Logout successful" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+const refreshToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies.refresh_token;
+
+    if (!refreshToken) {
+      return res.status(401).json({ message: "Refresh Token is Missing" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, process.env.REFRESH_SECRET_TOKEN);
+    } catch (error) {
+      console.log(`Error in refreshToken: ${error.message}`);
+      return res.status(401).json({ message: "Invalid or Expired Refresh Token" });
+    }
+
+    const findUser = await userModel.findById(decoded.userId);
+
+    if (!findUser) {
+      return res.status(404).json({ message: "User Not Found" });
+    }
+
+    const accessToken = generateAccessToken(findUser);
+    res.cookie("accessToken", accessToken, cookieOptions);
+
+    res.status(200).json({ message: "Access Token refreshed successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 
 module.exports = {
   register,
@@ -184,5 +229,6 @@ module.exports = {
   login,
   forgotPassword,
   resetPassword,
-  logout
+  logout,
+  refreshToken
 };

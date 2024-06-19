@@ -1,5 +1,6 @@
 const userModel = require("../model/userModel");
 
+//TEST 
 const getAllUsers = async (req, res) => {
   try {
     const getAll = await userModel.find({});
@@ -8,7 +9,7 @@ const getAllUsers = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
+//TEST
 const deleteUser = async (req, res) => {
     try {
       const deleteUser = await userModel.findByIdAndDelete(req.params.id);

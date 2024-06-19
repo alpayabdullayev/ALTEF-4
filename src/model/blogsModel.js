@@ -1,18 +1,5 @@
 const mongoose = require("mongoose");
 
-const commentSchema = new mongoose.Schema(
-  {
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "ALTEF4USER",
-      required: true,
-    },
-    content: { type: String, required: true },
-    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
-  },
-  { timestamps: true }
-);
-
 const blogSchema = new mongoose.Schema(
   {
     title: {
@@ -29,13 +16,13 @@ const blogSchema = new mongoose.Schema(
       ref: "ALTEF4USER",
       required: true,
     },
+    image :{type :String},
     tags: [{ type: String, trim: true }],
     saves: {
       type: Number,
       default: 0,
     },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
-    comments: [commentSchema],
     views: {
       type: Number,
       default: 0,

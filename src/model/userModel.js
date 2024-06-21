@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema(
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
     isActive: { type: Boolean, default: true },
+    isTwoFactorEnabled: { type: Boolean, default: false },
+    twoFactorSecret: { type: String },
+    twoFactorTempSecret: { type: String },
+    twoFactorQRCodeURL: { type: String },
+    otp: { type: String },
+    otpExpires: { type: Date },
   },
   { timestamps: true }
 );

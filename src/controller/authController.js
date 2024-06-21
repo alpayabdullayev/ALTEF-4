@@ -7,8 +7,9 @@ const userModel = require("../model/userModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { cookieOptions } = require("../utils/cookieOptions");
+const { sendOTP } = require("../utils/sendOTP");
 
-const register = async (req, res) => {
+const register = async (req, res,next) => {
   try {
     const { username, password, email } = req.body;
 
@@ -32,12 +33,13 @@ const register = async (req, res) => {
     res
       .status(201)
       .json({ message: "User created successfully", user: newUser });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
+
 };
 
-const verifyEmail = async (req, res) => {
+const verifyEmail = async (req, res,next) => {
   try {
     const { token } = req.query;
     const user = await userModel.findOne({ emailVerificationToken: token });
@@ -68,12 +70,12 @@ const verifyEmail = async (req, res) => {
     });
 
     res.status(200).json({ message: "Email verified successfully." });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
 };
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
 
@@ -88,9 +90,14 @@ const login = async (req, res) => {
 
     if (!user.isVerified) {
       return res.status(403).json({
-        error:
-          "Account is not verified. Please verify your account before logging in.",
+        error: "Account is not verified. Please verify your account before logging in.",
       });
+    }
+
+    if (user.isTwoFactorEnabled) {
+      const otpToken = generateAccessToken(user, '10m'); 
+      await sendOTP(user);
+      return res.status(200).json({ message: "OTP sent to your email.", otpToken });
     }
 
     const accessToken = generateAccessToken(user);
@@ -114,12 +121,76 @@ const login = async (req, res) => {
       accessToken,
       refreshToken,
     });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err);
   }
 };
 
-const forgotPassword = async (req, res) => {
+const verifyOTP = async (req, res, next) => {
+  try {
+    const { otp } = req.body;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).json({ message: "Access token missing" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.ACCESS_SECRET_TOKEN);
+    } catch (error) {
+      return res.status(401).json({ message: "Invalid or expired token" });
+    }
+
+    const user = await userModel.findById(decoded.userId);
+    console.log("user otp", user.otp); 
+    console.log("otppp" ,otp); 
+    console.log("asdadw",user.otpExpires); 
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    if (otp !== user.otp) {
+      console.log('Incorrect OTP provided');
+      return res.status(400).json({ error: "Invalid OTP." });
+    }
+
+    if (user.otpExpires < Date.now()) {
+      console.log('OTP has expired');
+      return res.status(400).json({ error: "Expired OTP." });
+    }
+
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+
+    const accessToken = generateAccessToken(user);
+    const refreshToken = generateRefreshToken(user);
+
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    const { password: _, ...otherDetails } = user._doc;
+
+    res.status(200).json({
+      message: "OTP verified successfully",
+      user: { ...otherDetails },
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const forgotPassword = async (req, res,next) => {
   try {
     const { email } = req.body;
 
@@ -140,12 +211,12 @@ const forgotPassword = async (req, res) => {
     await sendMail(user.email, "Password Reset", emailText);
 
     res.status(200).json({ message: "Password reset email sent." });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
 };
 
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res,next) => {
   try {
     const { token } = req.query;
     const { newPassword } = req.body;
@@ -167,12 +238,12 @@ const resetPassword = async (req, res) => {
     await user.save();
 
     res.status(200).json({ message: "Password has been reset." });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res,next) => {
   try {
     res.clearCookie("accessToken", {
       httpOnly: true,
@@ -186,12 +257,12 @@ const logout = async (req, res) => {
     });
 
     res.status(200).json({ message: "Logout successful" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
 };
 
-const refreshToken = async (req, res) => {
+const refreshToken = async (req, res,next) => {
   try {
     const refreshToken = req.cookies.refresh_token;
 
@@ -217,10 +288,30 @@ const refreshToken = async (req, res) => {
     res.cookie("accessToken", accessToken, cookieOptions);
 
     res.status(200).json({ message: "Access Token refreshed successfully" });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+  } catch (err) {
+    next(err)
   }
 };
+
+const isTwoFactorEnabled = async (req, res,next) => {
+  try {
+    const { userId } = req.user
+    const user = await userModel.findById(userId)
+    if (!user) {
+      return res.status(404).json({ message: 'user not found' })
+    }
+
+    user.isTwoFactorEnabled = !user.isTwoFactorEnabled
+    await user.save()
+
+    res
+      .status(200)
+      .json({ message: 'isTwoFactorEnabled successfully', user: user })
+  } catch (err) {
+    next(err)
+    res.status(500).json({ message: err.message })
+  }
+}
 
 
 module.exports = {
@@ -230,5 +321,7 @@ module.exports = {
   forgotPassword,
   resetPassword,
   logout,
-  refreshToken
+  refreshToken,
+  isTwoFactorEnabled,
+  verifyOTP
 };

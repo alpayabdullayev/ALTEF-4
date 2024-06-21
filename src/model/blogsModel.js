@@ -16,13 +16,19 @@ const blogSchema = new mongoose.Schema(
       ref: "ALTEF4USER",
       required: true,
     },
-    image :{type :String},
+    image: {
+      type: String,
+    },
     tags: [{ type: String, trim: true }],
     saves: {
       type: Number,
       default: 0,
     },
     likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "ALTEF4USER" }],
+    likesCount: {
+      type: Number,
+      default: 0,
+    },
     views: {
       type: Number,
       default: 0,

@@ -80,6 +80,10 @@ userSchema.pre("save", async function (next) {
   }
 });
 
+userSchema.methods.checkPassword = async function (password) {
+  return bcrypt.compare(password, this.password);
+};
+
 const userModel = mongoose.model("ALTEF4USER", userSchema);
 
 module.exports = userModel;
